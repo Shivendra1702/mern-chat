@@ -4,9 +4,10 @@ const morgan = require("morgan");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
-const User = require("./models/User");
+const ws = require("ws");
 
 const app = express();
+const User = require("./models/User");
 const connectDB = require("./config/db");
 
 // connect db
@@ -169,6 +170,20 @@ app.get(`/api/v1/profile`, async (req, res) => {
 });
 
 //listen
-app.listen(process.env.PORT, () => {
+const server = app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
+});
+
+const wss = new ws.WebSocketServer({ server });
+
+wss.on("connection", (connection, req) => {
+  const token = req.headers?.cookie
+    ?.split(";")
+    ?.find((str) => str.startsWith("token="))
+    ?.split("=")[1];
+
+  const payload = jwt.verify(token, process.env.JWT_SECRET, {});
+  connection.userId = payload.id;
+
+  connection.send("Hello from server");
 });

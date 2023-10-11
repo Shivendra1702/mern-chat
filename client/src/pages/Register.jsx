@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { UserContext } from "../UserContext";
 
@@ -34,7 +34,10 @@ const Register = () => {
       });
   };
 
-  if (userDetail?.username) navigate("/");
+  useEffect(() => {
+    if (userDetail?.username) navigate("/");
+  }, [userDetail, navigate]);
+  // if (userDetail?.username) navigate("/");
 
   return (
     <div className="f_page">

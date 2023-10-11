@@ -76,4 +76,69 @@ div.chat_wrapper {
   height: 100vh;
   background-color: #222629;
   display: flex;
+
+  div.contacts {
+    width: 30%;
+    height: 100%;
+    // background-color: red;
+  }
+
+  div.messages {
+    width: 70%;
+    height: 100%;
+    // background-color: green;
+    display: flex;
+    flex-direction: column;
+    border-left: #474b4f 4px solid;
+
+    div.selected_contact {
+      width: 100%;
+      height: 90%;
+      // background-color: pink;
+    }
+    div.form {
+      border-top: #474b4f 4px solid;
+      width: 100%;
+      height: 10%;
+      // background-color: yellow;
+      display: flex;
+      padding: 4px;
+      gap: 4px;
+
+      div.options {
+        height: 100%;
+        width: 5%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2em;
+        border-radius: 2px;
+        cursor: pointer;
+      }
+      div.options:hover {
+        background-color: #6b6e70;
+      }
+
+      input.message_input {
+        height: 100%;
+        width: 90%;
+        padding-left: 10px;
+        outline: none;
+        background-color:transparent;
+      }
+
+      button.send_message {
+        height: 100%;
+        width: 5%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2em;
+        border-radius: 2px;
+      }
+      button:hover {
+        background-color: #6b6e70;
+      }
+    }
+  }
 }
