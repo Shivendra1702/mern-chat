@@ -139,6 +139,12 @@ app.get(`/api/v1/logout`, async (req, res) => {
 app.get(`/api/v1/profile`, async (req, res) => {
   try {
     const { token } = req.cookies;
+    if (!token) {
+      return res.status(401).json({
+        ok: false,
+        message: "Unauthorized",
+      });
+    }
     const payload = jwt.verify(token, process.env.JWT_SECRET, {});
 
     if (!payload) {
@@ -182,6 +188,10 @@ wss.on("connection", (connection, req) => {
     ?.find((str) => str.startsWith("token="))
     ?.split("=")[1];
 
+  if (!token) {
+    connection.close();
+    return;
+  }
   const payload = jwt.verify(token, process.env.JWT_SECRET, {});
   connection.userId = payload.id;
 
