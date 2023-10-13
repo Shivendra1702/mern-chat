@@ -9,6 +9,7 @@ const Login = () => {
     email: "",
     password: "",
   });
+  // "/login"
   const handleSubmit = (e) => {
     e.preventDefault();
     fetch(`http://127.0.0.1:4000/api/v1/login`, {
@@ -25,7 +26,7 @@ const Login = () => {
       .then((data) => {
         if (data.ok) {
           setUser({ email: "", password: "" });
-          navigate("/");
+          navigate("/chat");
         }
       })
       .catch((err) => {
@@ -34,7 +35,7 @@ const Login = () => {
   };
 
   useEffect(() => {
-    if (userDetail?.username) navigate("/");
+    if (userDetail?.username) navigate("/chat");
   }, [userDetail, navigate]);
 
   return (

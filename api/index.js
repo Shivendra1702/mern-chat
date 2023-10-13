@@ -182,6 +182,7 @@ const server = app.listen(process.env.PORT, () => {
 
 const wss = new ws.WebSocketServer({ server });
 
+// handle messages
 wss.on("connection", (connection, req) => {
   const token = req.headers?.cookie
     ?.split(";")
@@ -194,6 +195,31 @@ wss.on("connection", (connection, req) => {
   }
   const payload = jwt.verify(token, process.env.JWT_SECRET, {});
   connection.userId = payload.id;
+  connection.username = payload.username;
 
-  connection.send("Hello from server");
+  // send online users
+  [...wss.clients].forEach((client) => {
+    client.send(
+      JSON.stringify({
+        online: [...wss.clients].map((c) => ({
+          userId: c.userId,
+          username: c.username,
+        })),
+      })
+    );
+  });
+
+  connection.on("message", (userMessage) => {
+    const data = JSON.parse(userMessage);
+    const { recipient, message } = data;
+    if (recipient && message) {
+      [...wss.clients].forEach((client) => {
+        if (client.userId === recipient) {
+          client.send(
+            JSON.stringify({ message: data.message, sender: connection.userId })
+          );
+        }
+      });
+    }
+  });
 });

@@ -9,8 +9,8 @@ function App() {
   return (
     <UserProvider>
       <Routes>
-        <Route index path="/" element={<Chat />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
+        <Route path="/chat" element={<Chat />} />
         <Route path="/register" element={<Register />} />
       </Routes>
     </UserProvider>

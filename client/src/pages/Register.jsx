@@ -26,7 +26,7 @@ const Register = () => {
       .then((data) => {
         if (data.ok) {
           setUser({ username: "", email: "", password: "" });
-          navigate("/");
+          navigate("/chat");
         }
       })
       .catch((err) => {
@@ -35,7 +35,7 @@ const Register = () => {
   };
 
   useEffect(() => {
-    if (userDetail?.username) navigate("/");
+    if (userDetail?.username) navigate("/chat");
   }, [userDetail, navigate]);
   // if (userDetail?.username) navigate("/");
 
@@ -70,11 +70,11 @@ const Register = () => {
           </button>
         </form>
         <span>
-          Already a User ! <Link to={`/login`}>Login</Link> Here
+          Already a User ! <Link to={`/`}>Login</Link> Here
         </span>
       </div>
     </div>
   );
 };
-
+// "/login"
 export default Register;
