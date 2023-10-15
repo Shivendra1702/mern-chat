@@ -1,9 +1,9 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { UserContext } from "../UserContext";
 
 const Register = () => {
-  const userDetail = useContext(UserContext);
+  const { userDetail } = useContext(UserContext);
   const navigate = useNavigate();
   const [user, setUser] = useState({
     username: "",
@@ -34,10 +34,9 @@ const Register = () => {
       });
   };
 
-  useEffect(() => {
-    if (userDetail?.username) navigate("/chat");
-  }, [userDetail, navigate]);
-  // if (userDetail?.username) navigate("/");
+  if (userDetail?._id) {
+    navigate("/chat");
+  }
 
   return (
     <div className="f_page">

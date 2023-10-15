@@ -1,9 +1,9 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { UserContext } from "../UserContext";
 
 const Login = () => {
-  const userDetail = useContext(UserContext);
+  const { userDetail } = useContext(UserContext);
   const navigate = useNavigate();
   const [user, setUser] = useState({
     email: "",
@@ -34,9 +34,9 @@ const Login = () => {
       });
   };
 
-  useEffect(() => {
-    if (userDetail?.username) navigate("/chat");
-  }, [userDetail, navigate]);
+  if (userDetail?._id) {
+    navigate("/chat");
+  }
 
   return (
     <div className="f_page">

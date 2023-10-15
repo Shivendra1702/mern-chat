@@ -80,6 +80,10 @@ const Chat = () => {
   const onlinePeopleExclOurUser = { ...onlinePeople };
   delete onlinePeopleExclOurUser[userDetail?._id];
 
+  // if (!userDetail?._id) {
+  //   navigate("/");
+  // }
+
   return (
     <div className="chat_wrapper">
       <div className="contacts">
