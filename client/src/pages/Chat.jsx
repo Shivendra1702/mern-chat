@@ -1,16 +1,20 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { BsSend } from "react-icons/bs";
 import { GrAttachment } from "react-icons/gr";
 import { UserContext } from "../UserContext";
+import { uniqBy } from "lodash";
+// import { format } from "date-fns";
 
 const Chat = () => {
   const [onlinePeople, setOnlinePeople] = useState({});
+  const [offlinePeople, setOfflinePeople] = useState({});
   const [selectedUser, setSelectedUser] = useState(null);
   const { userDetail, setUserDetail } = useContext(UserContext);
   const [newMessage, setNewMessage] = useState("");
   const [wss, setWss] = useState(null);
   const [messages, setMessages] = useState([]);
+  const messageRef = useRef(null);
 
   const navigate = useNavigate();
   const colors = [
@@ -38,13 +42,21 @@ const Chat = () => {
     if ("online" in messageData) {
       showOnlineUsers(messageData.online);
     } else {
-      console.log(e);
+      const msg_obj = JSON.parse(e.data);
+      setMessages((prev) => [...prev, { ...msg_obj }]);
     }
   };
+
   useEffect(() => {
-    const wsc = new WebSocket(`ws://127.0.0.1:4000`);
-    wsc.addEventListener("message", handleMessage);
-    setWss(wsc);
+    function connectToWs() {
+      const wsc = new WebSocket(`ws://127.0.0.1:4000`);
+      wsc.addEventListener("message", handleMessage);
+      wsc.addEventListener("close", () => {
+        connectToWs();
+      });
+      setWss(wsc);
+    }
+    connectToWs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -55,6 +67,7 @@ const Chat = () => {
     })
       .then((response) => {
         if (response.ok) {
+          setWss(null);
           setUserDetail(null);
           navigate("/");
         }
@@ -65,24 +78,82 @@ const Chat = () => {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (newMessage.length == 0) return;
     wss.send(
       JSON.stringify({
-        recipient: selectedUser,
+        receiver: selectedUser,
         message: newMessage,
       })
     );
     setNewMessage("");
-    setMessages((prev) => [...prev, { message: newMessage, isOur: true }]);
-    console.log(messages);
+    setMessages((prev) => [
+      ...prev,
+      {
+        message: newMessage,
+        sender: userDetail?._id,
+        receiver: selectedUser,
+
+        _id: Date.now(),
+      },
+    ]);
   };
+
+  useEffect(() => {
+    const div = messageRef.current;
+    if (div) {
+      div.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+        inline: "nearest",
+      });
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (selectedUser) {
+      fetch(`http://127.0.0.1:4000/api/v1/messages/${selectedUser}`, {
+        credentials: "include",
+        method: "GET",
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          // console.log(data.messages);
+          setMessages(data.messages);
+        })
+        .catch((err) => {
+          throw new Error(err);
+        });
+    }
+  }, [selectedUser]);
+
+  useEffect(() => {
+    fetch(`http://127.0.0.1:4000/api/v1/people`, {
+      credentials: "include",
+      method: "GET",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const offlineUsers = data.users
+          .filter((user) => user._id !== userDetail?._id)
+          .filter((user) => {
+            return !Object.keys(onlinePeople).includes(user._id);
+          });
+        const offline = {};
+        offlineUsers.forEach(({ _id, username }) => {
+          offline[_id] = username;
+        });
+        setOfflinePeople(offline);
+      })
+      .catch((err) => {
+        throw new Error(err);
+      });
+  }, [onlinePeople, userDetail?._id]);
 
   const onlinePeopleExclOurUser = { ...onlinePeople };
   delete onlinePeopleExclOurUser[userDetail?._id];
 
-  // if (!userDetail?._id) {
-  //   navigate("/");
-  // }
+  const messagesWithoutDupes = uniqBy(messages, "_id");
 
   return (
     <div className="chat_wrapper">
@@ -109,11 +180,41 @@ const Chat = () => {
                   }`}
                 >
                   {onlinePeople[userId][0]}
+
+                  <div className="online_logo"></div>
                 </div>
                 {onlinePeople[userId]}
               </div>
             );
           })}
+          {Object.keys(offlinePeople).map((userId) => {
+            return (
+              <div
+                key={userId}
+                className={
+                  "single_user " + (selectedUser === userId ? "active" : "")
+                }
+                onClick={() => {
+                  setSelectedUser(userId);
+                  console.log(userId);
+                }}
+              >
+                <div
+                  className={`avatar ${
+                    colors[parseInt(userId.substring(10), 16) % colors.length]
+                  }`}
+                >
+                  {offlinePeople[userId][0]}
+                  <div className="offline_logo"></div>
+                </div>
+
+                {offlinePeople[userId]}
+              </div>
+            );
+          })}
+        </div>
+        <div className="logged_person_name">
+          <span>Logged In As : {userDetail?.username}</span>
         </div>
       </div>
       <div className="messages">
@@ -131,14 +232,52 @@ const Chat = () => {
                   ]
                 }`}
               >
-                {onlinePeople[selectedUser][0]}
+                {onlinePeople[selectedUser] && onlinePeople[selectedUser][0]}
+                {offlinePeople[selectedUser] && offlinePeople[selectedUser][0]}
               </div>
-              <h1>{onlinePeople[selectedUser]}</h1>
+              <h1>
+                {onlinePeople[selectedUser] && onlinePeople[selectedUser]}
+                {offlinePeople[selectedUser] && offlinePeople[selectedUser]}
+              </h1>
             </div>
-            <div className="selected_contact"></div>
+            <div className="selected_contact">
+              {messagesWithoutDupes.map((message, index) =>
+                message.sender === userDetail?._id ? (
+                  <div key={index} className=" sent_msg">
+                    <div className="message sent">
+                      <span>{message.message}</span>
+                      {/* <br />
+                      <time className="msg_time">
+                        {format(
+                          new Date(message.createdAt),
+                          "MMM dd , yyyy hh:mm"
+                        )}
+                      </time> */}
+                    </div>
+                  </div>
+                ) : (
+                  <div key={index} className="">
+                    <div className="message received">
+                      <span>{message.message}</span>
+                      {/* <br />
+                      <time className="msg_time">
+                        {format(
+                          new Date(message.createdAt),
+                          "MMM dd , yyyy hh:mm"
+                        )}
+                      </time> */}
+                    </div>
+                  </div>
+                )
+              )}
+              <div ref={messageRef}></div>
+            </div>
             <form className="form" onSubmit={handleSubmit}>
               <div className="options">
-                <GrAttachment />
+                <label htmlFor="file_input" className="cursor-pointer">
+                  <GrAttachment />
+                </label>
+                <input type="file" className="hidden" id="file_input" />
               </div>
               <input
                 value={newMessage}

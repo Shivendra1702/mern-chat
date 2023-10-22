@@ -8,12 +8,14 @@ const ws = require("ws");
 
 const app = express();
 const User = require("./models/User");
+const Messages = require("./models/Messages");
 const connectDB = require("./config/db");
 
 // connect db
 connectDB();
 
 //middlewares
+app.use("/uploads", express.static(__dirname + "/uploads"));
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser());
@@ -175,6 +177,52 @@ app.get(`/api/v1/profile`, async (req, res) => {
   }
 });
 
+app.get(`/api/v1/messages/:selectedUserId`, async (req, res) => {
+  try {
+    const { token } = req.cookies;
+
+    if (!token) {
+      return res.status(401).json({
+        ok: false,
+        message: "Unauthorized",
+      });
+    }
+    const payload = jwt.verify(token, process.env.JWT_SECRET, {});
+    const sender = payload.id;
+    const receiver = req.params.selectedUserId;
+
+    const messages = await Messages.find({
+      sender: { $in: [sender, receiver] },
+      receiver: { $in: [sender, receiver] },
+    }).sort({ createdAt: 1 });
+
+    return res.status(200).json({
+      ok: true,
+      messages,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      ok: false,
+      message: "Error getting messages",
+    });
+  }
+});
+
+app.get(`/api/v1/people`, async (req, res) => {
+  try {
+    const users = await User.find({}, { _id: 1, username: 1 });
+    return res.status(200).json({
+      ok: true,
+      users,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      ok: false,
+      message: "Error getting people",
+    });
+  }
+});
+
 //listen
 const server = app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
@@ -184,6 +232,36 @@ const wss = new ws.WebSocketServer({ server });
 
 // handle messages
 wss.on("connection", (connection, req) => {
+  function notifyAboutOnlinePeople() {
+    [...wss.clients].forEach((client) => {
+      client.send(
+        JSON.stringify({
+          online: [...wss.clients].map((c) => ({
+            userId: c.userId,
+            username: c.username,
+          })),
+        })
+      );
+    });
+  }
+
+  connection.isAlive = true;
+
+  connection.timer = setInterval(() => {
+    connection.ping();
+    connection.deathTimer = setTimeout(() => {
+      connection.isAlive = false;
+      clearInterval(connection.timer);
+      connection.terminate();
+      notifyAboutOnlinePeople();
+      console.log(`dead`);
+    }, 1000);
+  }, 5000);
+
+  connection.on("pong", () => {
+    clearTimeout(connection.deathTimer);
+  });
+
   const token = req.headers?.cookie
     ?.split(";")
     ?.find((str) => str.startsWith("token="))
@@ -198,28 +276,45 @@ wss.on("connection", (connection, req) => {
   connection.username = payload.username;
 
   // send online users
-  [...wss.clients].forEach((client) => {
-    client.send(
-      JSON.stringify({
-        online: [...wss.clients].map((c) => ({
-          userId: c.userId,
-          username: c.username,
-        })),
-      })
-    );
-  });
+  notifyAboutOnlinePeople();
+  // [...wss.clients].forEach((client) => {
+  //   client.send(
+  //     JSON.stringify({
+  //       online: [...wss.clients].map((c) => ({
+  //         userId: c.userId,
+  //         username: c.username,
+  //       })),
+  //     })
+  //   );
+  // });
 
-  connection.on("message", (userMessage) => {
+  connection.on("message", async (userMessage) => {
     const data = JSON.parse(userMessage);
-    const { recipient, message } = data;
-    if (recipient && message) {
+    const { receiver, message } = data;
+
+    if (receiver && message) {
+      const msg = await Messages.create({
+        message,
+        sender: connection.userId,
+        receiver: receiver,
+      });
+
       [...wss.clients].forEach((client) => {
-        if (client.userId === recipient) {
+        if (client.userId === receiver) {
           client.send(
-            JSON.stringify({ message: data.message, sender: connection.userId })
+            JSON.stringify({
+              message: data.message,
+              sender: connection.userId,
+              receiver,
+              _id: msg._id,
+            })
           );
         }
       });
     }
   });
+});
+
+wss.on("close", (data) => {
+  console.log(`disconected`, data);
 });

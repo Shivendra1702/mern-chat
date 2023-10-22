@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "autoprefixer": "^10.4.16",
+    "date-fns": "^2.30.0",
+    "lodash": "^4.17.21",
     "postcss": "^8.4.31",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
